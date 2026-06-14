@@ -735,7 +735,27 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--dark);min
   </div>
 </div>
 
-<script>
+<script type="module">
+// ════════════════════════════════════════
+//  FIREBASE SETUP
+// ════════════════════════════════════════
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC_DJJ-qPvnF4eOjBXn2TvoflDXa9qgBw4",
+  authDomain: "non-maxsulotlari.firebaseapp.com",
+  databaseURL: "https://non-maxsulotlari-default-rtdb.firebaseio.com",
+  projectId: "non-maxsulotlari",
+  storageBucket: "non-maxsulotlari.firebasestorage.app",
+  messagingSenderId: "283674611318",
+  appId: "1:283674611318:web:e2257ebac6102e773cd957",
+  measurementId: "G-DMHLBFLMZG"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
 // ════════════════════════════════════════════════════
 //  SOZLAMALAR
 // ════════════════════════════════════════════════════
@@ -777,7 +797,11 @@ function init(){
   updateMyOrdersBtn();
 }
 
-function saveLS(){ localStorage.setItem("non_products",JSON.stringify(products)); }
+function saveLS(){
+  localStorage.setItem("non_products",JSON.stringify(products));
+  // Firebase ga ham saqlash
+  set(ref(db, 'products'), products).catch(e=>console.warn('Firebase saqlash xato:',e));
+}
 function saveMyOrders(){ localStorage.setItem("non_my_orders",JSON.stringify(myOrderIds)); }
 
 // ════════════════════════════════════════════════════
@@ -790,7 +814,20 @@ function showPage(id){
 }
 function showShop(){ showPage("shop"); renderShopProducts(); updateMyOrdersBtn(); }
 function showLogin(){ document.getElementById("login-pass").value=""; document.getElementById("login-err").style.display="none"; showPage("login"); setTimeout(()=>document.getElementById("login-pass").focus(),200); }
-function showAdmin(){ showPage("admin"); renderAdminList(); renderAdminOrders(); updateOrdersBadge(); }
+function showAdmin(){
+  showPage("admin");
+  renderAdminList();
+  // Firebase dan buyurtmalarni yuklash
+  get(ref(db,"orders")).then(snap=>{
+    if(snap.exists()){
+      const data = snap.val();
+      const orders = Array.isArray(data)?data:Object.values(data);
+      localStorage.setItem("mb_orders", JSON.stringify(orders));
+    }
+    renderAdminOrders();
+    updateOrdersBadge();
+  }).catch(()=>{ renderAdminOrders(); updateOrdersBadge(); });
+}
 
 function doLogin(){
   const v = document.getElementById("login-pass").value;
@@ -1029,6 +1066,8 @@ function saveOrderToStorage(order){
   let orders = getAllOrders();
   orders.unshift(order);
   localStorage.setItem("mb_orders", JSON.stringify(orders));
+  // Firebase ga buyurtma saqlash
+  set(ref(db, "orders"), orders).catch(e=>console.warn("Firebase order xato:",e));
 }
 function getAllOrders(){
   try{ return JSON.parse(localStorage.getItem("mb_orders"))||[]; }
@@ -1038,6 +1077,7 @@ function updateOrderStatus(orderId, status){
   let orders = getAllOrders();
   orders = orders.map(o=>o.id===orderId?{...o,status}:o);
   localStorage.setItem("mb_orders", JSON.stringify(orders));
+  set(ref(db,"orders"), orders).catch(e=>console.warn("Firebase status xato:",e));
 }
 function confirmReceivedByUser(orderId){
   let orders = getAllOrders();
